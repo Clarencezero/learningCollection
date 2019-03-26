@@ -83,6 +83,7 @@ public class JvmProcessStatusToolsTest {
      */
     @Test
     public void testOption_V_L() {
+
         String res = readStringFromProcessBuilder("jps","-v","-l");
         String[] line = res != null ? res.split("\n") : new String[0];
         for (String s : line) {
@@ -98,7 +99,7 @@ public class JvmProcessStatusToolsTest {
                 // 获取最后.后面的名称
                 String smallName = arg[1].contains(".") ? arg[1].substring(arg[1].lastIndexOf(".")+1) : arg[1];
                 smallName = smallName.equalsIgnoreCase("jar")? arg[1] : smallName;
-                List<String> re = Arrays.stream(arg).skip(2).collect(Collectors.toList());
+
             } else {
                 System.out.println("-------else" + arg[1]);
             }
@@ -194,7 +195,7 @@ public class JvmProcessStatusToolsTest {
     }
 
 
-    private String readStringFromProcessBuilder(String... cmd) {
+    public static String readStringFromProcessBuilder(String... cmd) {
         StringBuilder sb = null;
         try {
             ProcessBuilder pBuilder = new ProcessBuilder(cmd);
@@ -224,7 +225,7 @@ public class JvmProcessStatusToolsTest {
         return null;
     }
 
-    private StringBuilder readStringFromProcess(Process p) {
+    public static StringBuilder readStringFromProcess(Process p) {
         BufferedReader bufferedReader;
         InputStreamReader inputStreamReader;
         try {
