@@ -67,6 +67,10 @@ public class JstatCommand {
     /**
      * 垃圾回收堆的行为统计。
      * JVM中的堆: 分为: 新生代、老年代、永久代(JDK1.8 被元数据区(元空间)的区域所取代)
+     *      - 新生代分: Eden区、ServivorFrom、ServivorTo三个区
+     *      Servivor: 保留一次MinorGC过程中的幸存者
+     *      MinorGC复制过程: 采用复制算法。首先,把Eden区和ServivorFrom区域中的存活的对象复制到ServivorTo区域中,如果某些对象达到老年的标准年龄,则复制到老年区,同时把这些对象的年龄+1。
+     *      然后,清空Eden和ServivorFrom中的对象;最后,ServivorTo和ServivorFrom互换。
      * 单位: 字节(kb)
      *  S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU    CCSC   CCSU   YGC     YGCT    FGC    FGCT     GCT
      * 7168.0 9216.0 7153.6  0.0   51200.0  48231.5   116736.0   100956.4  62104.0 59026.2 8360.0 7758.8     92    2.336   3      0.525    2.861
@@ -77,8 +81,8 @@ public class JstatCommand {
      * S1U : survivor1区已使用的容量
      *
      * EC : Eden区的总容量
-     *      * EU : Eden区已使用的容量
-     *      *
+     * EU : Eden区已使用的容量
+     *
      * OC : Old区的总容量
      * OU : Old区已使用的容量
      *
