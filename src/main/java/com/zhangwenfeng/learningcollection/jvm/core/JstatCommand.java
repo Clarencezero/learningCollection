@@ -6,6 +6,27 @@ import org.omg.CORBA.DynAnyPackage.Invalid;
 
 import java.util.Map;
 
+/**
+ * JSTAT命令可以得出哪些信息:
+ * 1. Full GC是否频繁?看下总内存和老年代设置的是否太小了。主要看参数 -Xmx、-Xmn。如果参数过小,必然会GC频繁
+ * 2. 添加以下参数
+ *  -verbose.gc
+ *  -XX:+PrintGC
+ *  -XX:+PrintGCTimeStamps
+ *  -XX:+PrintGCDateStamps
+ *  -XX:+PrintHeapAtGC
+ *  -XX:+PrintTenuringDistribution
+ *  -XX:+PrintGCApplicationStoppedTime
+ *  -XX:+PrintTenuringDistribution
+ *  -Xloggc:/data/log/xxx/xxx-gc.log
+ *  -XX:+PrintGCDetails
+ * 查看每次gc ，老年代还剩余多少空间，一般来说，老年代的空间设置为gc后内存的2-2.5倍是一个较为合理的数值。
+ * 同时通过这个日志可以看到是否大量的对象没有在新生代充分的gc掉就进入老生代。原本可以通过新生代回收的对象进入老年代的话必然会full gc 频繁
+ *
+ * 3. 代码原因 dump 内存
+ *  jmap -dump:live,format=b,file=xx.bin ［pid］
+ *  然后通过MAT（http://www.eclipse.org/mat/）工具来看具体是哪块大内存没有被释放
+ */
 public class JstatCommand {
     private static final String JSTAT = "jstat";
     private static final String _CLASS = "-class";
@@ -72,8 +93,8 @@ public class JstatCommand {
      *      MinorGC复制过程: 采用复制算法。首先,把Eden区和ServivorFrom区域中的存活的对象复制到ServivorTo区域中,如果某些对象达到老年的标准年龄,则复制到老年区,同时把这些对象的年龄+1。
      *      然后,清空Eden和ServivorFrom中的对象;最后,ServivorTo和ServivorFrom互换。
      * 单位: 字节(kb)
-     *  S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU    CCSC   CCSU   YGC     YGCT    FGC    FGCT     GCT
-     * 7168.0 9216.0 7153.6  0.0   51200.0  48231.5   116736.0   100956.4  62104.0 59026.2 8360.0 7758.8     92    2.336   3      0.525    2.861
+     *  S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC      MU     CCSC   CCSU      YGC    YGCT   FGC     FGCT     GCT
+     * 7168.0 9216.0 7153.6  0.0   51200.0  48231.5   116736.0   100956.4  62104.0 59026.2 8360.0  7758.8     92    2.336   3      0.525    2.861
      *
      * S0C : survivor0区的总容量
      * S1C : survivor1区的总容量
@@ -86,13 +107,14 @@ public class JstatCommand {
      * OC : Old区的总容量
      * OU : Old区已使用的容量
      *
-     * PC 当前perm的容量 (KB)
+     * PC 当前perm的容量 (KB)(JDK1.8之前叫永久代,JDK1.8后使用元数据区代替(即MC))
      * PU perm的使用 (KB)
-     * YGC : 新生代垃圾回收次数
-     * YGCT : 新生代垃圾回收时间
-     * FGC : 老年代垃圾回收次数
-     * FGCT : 老年代垃圾回收时间
-     * GCT : 垃圾回收总消耗时间
+     *
+     * YGC : 从程序启动到采样时发生YoungGC的次数
+     * YGCT : 新生代垃圾回收时间(单位: S)
+     * FGC : 从程序启动到采样时发生Full GC的次数
+     * FGCT : 老年代垃圾回收时间(单位: S)
+     * GCT : 垃圾回收总消耗时间(单位: S)
      *
      * jstat -gc 1261 2000 20
      * @param id
@@ -100,6 +122,13 @@ public class JstatCommand {
      */
     public static Map<String, JstatEntity> _GC(String id) {
         String res = ExecuteCommand.command(JSTAT, _GC, id);
+        System.out.println(res);
+        return null;
+    }
+
+
+    public static Map<String, JstatEntity> _GCUTIL(String id) {
+        String res = ExecuteCommand.command(JSTAT, _GCUTIL, id);
         System.out.println(res);
         return null;
     }
