@@ -9,6 +9,8 @@ public class QuickSort {
     }
 
     private static <T extends Comparable<? super T>> void sortByTwopoint(T[] array, int left, int right) {
+        // 1. 难点一: 会忘记这个
+        if (left >= right) return;
         int index = partition(array, left, right);
         sortByTwopoint(array, left, index);
         sortByTwopoint(array, index + 1, right);
