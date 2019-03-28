@@ -21,7 +21,21 @@ import java.util.Map;
  *  -Xloggc:/data/log/xxx/xxx-gc.log
  *  -XX:+PrintGCDetails
  * 查看每次gc ，老年代还剩余多少空间，一般来说，老年代的空间设置为gc后内存的2-2.5倍是一个较为合理的数值。
- * 同时通过这个日志可以看到是否大量的对象没有在新生代充分的gc掉就进入老生代。原本可以通过新生代回收的对象进入老年代的话必然会full gc 频繁
+ * 同时通过这个日志可以看到是否大量的对象没有在新生代充分的gc掉就进入老生代。原本可以通过新生代回收的对象进入老年代的话必然会full gc 频繁。
+ *
+ * 什么时候触发GC:
+ *  1. 程序调用System.gc()时可以触发。
+ *  2. 系统自身来决定GC触发的时机。
+ *      系统根据Eden区和FromSpace区的内存大小来决定,当内存大小不足时,则会启动GC线程并停止应用线程。
+ *
+ *  Minor GC触发条件:当Eden区满时,触发Minor GC
+ *  Full GC触发条件:
+ *      1. 调用System.gc()时,系统建议执行Full GC,但是不必然执行
+ *      2. 老年代空间不足
+ *      3. 方法区空间不足
+ *      4. Minor GC后进入老年代的平均大小 > 老年代可用空间
+ *      5. 由Eden区、From Space区向ToSpace区复制时,对象大小大于To Space可用内存,则把该对象转存到老年代,且老年代的可用空间小于该对象大小
+ *
  *
  * 3. 代码原因 dump 内存
  *  jmap -dump:live,format=b,file=xx.bin ［pid］
@@ -29,19 +43,50 @@ import java.util.Map;
  */
 public class JstatCommand {
     private static final String JSTAT = "jstat";
+    /**
+     * class: class loader的行为统计。Statistics on the behavior of the class loader.
+     */
     private static final String _CLASS = "-class";
     /**
-     * HotSpt JIT编译器行为统计。Statistics of the behavior of the HotSpot Just-in-Time compiler.
+     * compiler: HotSpt JIT编译器行为统计。Statistics of the behavior of the HotSpot Just-in-Time compiler.
      */
     private static final String _COMPILER = "-compiler";
+    /**
+     * gc: 垃圾回收堆的行为统计。Statistics of the behavior of the garbage collected heap.
+     */
     private static final String _GC = "-gc";
+    /**
+     * gccapacity: 各个垃圾回收代容量(young,old,perm)和他们相应的空间统计。Statistics of the capacities of the generations and their corresponding spaces.
+     */
     private static final String _GCCAPACITY = "-gccapacity";
     /**
-     * 垃圾回收统计概述。Summary of garbage collection statistics.
+     * gcutil: 垃圾回收统计概述。Summary of garbage collection statistics.
      */
     private static final String _GCUTIL = "-gcutil";
 
+    /**
+     * gccause: 	垃圾收集统计概述（同-gcutil），附加最近两次垃圾回收事件的原因。Summary of garbage collection statistics (same as -gcutil), with the cause of the last and
+     */
+    private static final String _GCCAUSE = "-gccause";
 
+    /**
+     * gcnew: 新生代行为统计
+     */
+    private static final String _GCNEW = "-gcnew";
+    /**
+     * gcold: 年老代和永生代行为统计
+     */
+    private static final String _GCOLD = "-gcold";
+
+    /**
+     * gcnewcapacity:	新生代与其相应的内存空间的统计
+     */
+    private static final String _GCNEWCAPACITY = "-gcnewcapacity";
+
+    /**
+     * gcoldcapacity:	年老代行为统计
+     */
+    private static final String _GCOLDCAPACITY = "-gcoldcapacity";
 
     /**
      * 监视类装载、卸载数量、总空间以及耗费的时间
@@ -127,11 +172,85 @@ public class JstatCommand {
     }
 
 
+    /**
+     * 总结垃圾回收统计
+     *
+     *  S0：幸存1区当前使用比例
+     *  S1：幸存2区当前使用比例
+     *   E：伊甸园区使用比例
+     *   O：老年代使用比例
+     *   M：元数据区使用比例
+     * CCS：压缩使用比例
+     * YGC：年轻代垃圾回收次数
+     * FGC：老年代垃圾回收次数
+     *FGCT：老年代垃圾回收消耗时间
+     * GCT：垃圾回收消耗总时间
+     *   S0     S1     E      O      M     CCS      YGC     YGCT    FGC    FGCT     GCT
+     *   0.00   0.00  76.86  42.49  98.05  96.00     11    1.374     2    0.713    2.088
+     * @param id
+     * @return
+     */
     public static Map<String, JstatEntity> _GCUTIL(String id) {
         String res = ExecuteCommand.command(JSTAT, _GCUTIL, id);
         System.out.println(res);
         return null;
     }
+
+
+    /**
+     *  NGCMN    NGCMX     NGC     S0C   S1C       EC      OGCMN      OGCMX       OGC         OC            MCMN     MCMX      MC          CCSMN    CCSMX        CCSC    YGC    FGC
+     *  43520.0 698880.0 698880.0 43520.0 41472.0 413184.0    87552.0  1398272.0   119808.0   119808.0      0.0     1081344.0  35416.0      0.0     1048576.0   4096.0     11     2
+     *
+     * NGCMN：新生代最小容量
+     * NGCMX：新生代最大容量
+     * NGC：当前新生代容量
+     * S0C：第一个幸存区大小
+     * S1C：第二个幸存区的大小
+     * EC：伊甸园区的大小
+     * OGCMN：老年代最小容量
+     * OGCMX：老年代最大容量
+     * OGC：当前老年代大小
+     * OC:当前老年代大小
+     * MCMN:最小元数据容量
+     * MCMX：最大元数据容量
+     * MC：当前元数据空间大小
+     * CCSMN：最小压缩类空间大小
+     * CCSMX：最大压缩类空间大小
+     * CCSC：当前压缩类空间大小
+     * YGC：年轻代gc次数
+     * FGC：老年代GC次数
+     * ---------------------
+     * 作者：褚金辉
+     * 来源：CSDN
+     * 原文：https://blog.csdn.net/maosijunzi/article/details/46049117
+     * 版权声明：本文为博主原创文章，转载请附上博文链接！
+     *
+     * @param id
+     * @return
+     */
+    public static Map<String, JstatEntity> _GCCAPACITY(String id) {
+        String res = ExecuteCommand.command(JSTAT, _GCCAPACITY, id);
+        System.out.println(res);
+        return null;
+    }
+
+
+    /**
+     *  垃圾收集统计概述,同-gcutil。
+     *  LGCC: 最近垃圾回收原因
+     *  GCC: 当前垃圾回收的原因
+     *   S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT      GCT           LGCC               GCC
+     *   0.00   0.00  98.86  42.49  98.05  96.00     11    1.374     2    0.713    2.088  Metadata GC Threshold    No GC
+     * @param id
+     * @return
+     */
+    public static Map<String, JstatEntity> _GCCAUSE(String id) {
+        String res = ExecuteCommand.command(JSTAT, _GCCAUSE, id);
+        System.out.println(res);
+        return null;
+    }
+
+
 
 
 
