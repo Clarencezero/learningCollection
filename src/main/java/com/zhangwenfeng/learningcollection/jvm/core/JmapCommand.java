@@ -5,6 +5,13 @@ import com.zhangwenfeng.learningcollection.jvm.entity.JmapEntiry;
 
 import java.util.Map;
 
+/**
+ * DUMP: 是反应Java堆使用情况的内存镜像,包括系统信息、虚拟机属性、完整的线程DUMP、所有类和对象的状态等。
+ * 优化思路:
+ *  1. 如果程序内存不足或者频繁GC, 很有可能存在内存泄露情况,这时候应该借助Java堆Dump查看对象的情况
+ *  2. 可以先使用jmap -heap命令查看堆的使用情况,看一下各个堆空间的占用情况
+ *
+ */
 public class JmapCommand {
     private static final String JMAP = "jmap";
     /**
