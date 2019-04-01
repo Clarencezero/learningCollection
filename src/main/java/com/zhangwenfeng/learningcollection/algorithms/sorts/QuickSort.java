@@ -2,6 +2,10 @@ package com.zhangwenfeng.learningcollection.algorithms.sorts;
 
 import com.zhangwenfeng.learningcollection.algorithms.common.AlgorithmsUtils;
 
+/**
+ * 快速排序也是采用了分治思想,时间复杂度O(NlongN),空间复杂度O(N)
+ *
+ */
 public class QuickSort {
 
     /**
@@ -87,7 +91,7 @@ public class QuickSort {
             else i++;
         }
 
-        // 难点三: 左节点和右节点指针确定
+        // 难点三: 左节点和右节点指针确定。都需要根据point-1,和+1
         sortByThreepoint(array, left, leftPoint- 1);
         sortByThreepoint(array, rightPoint +1, right);
     }
